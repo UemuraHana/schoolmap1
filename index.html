@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>東京都の学校施設マップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <style>
+    :root {
+      --bg: #f4f7fb; --panel: #fff; --ink: #182230; --muted: #687586;
+      --line: #e5eaf0; --accent: #2563eb; --accent-soft: #eff6ff;
+      --shadow: 0 12px 36px rgba(24, 34, 48, .10);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: Inter, "Noto Sans JP", system-ui, -apple-system, sans-serif; color: var(--ink); }
+    body { background: var(--bg); }
+    .app { height: 100%; display: grid; grid-template-columns: 360px 1fr; }
+    aside { z-index: 500; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+    .header { padding: 22px 22px 17px; border-bottom: 1px solid var(--line); }
+    .eyebrow { color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { font-size: 21px; line-height: 1.35; margin: 7px 0 5px; letter-spacing: -.03em; }
+    .sub { color: var(--muted); font-size: 12px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px 20px; }
+    .stat { padding: 12px 14px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 13px; }
+    .stat strong { display: block; font-size: 22px; letter-spacing: -.04em; }
+    .stat span { color: var(--muted); font-size: 11px; }
+    .controls { padding: 0 20px 14px; }
+    .search-wrap { position: relative; }
+    .search-wrap span { position: absolute; left: 12px; top: 10px; color: #8491a2; }
+    input[type="search"] { width: 100%; border: 1px solid var(--line); background: #fbfcfe; border-radius: 10px; padding: 11px 12px 11px 36px; font-size: 13px; outline: none; }
+    input[type="search"]:focus { border-color: #8bb5ff; box-shadow: 0 0 0 3px #dbeafe; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin: 15px 0 9px; font-size: 12px; font-weight: 800; }
+    .text-button { border: 0; background: none; color: var(--accent); cursor: pointer; font-size: 11px; font-weight: 700; padding: 3px; }
+    .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .filter { display: flex; align-items: center; gap: 7px; min-width: 0; border: 1px solid var(--line); padding: 8px 9px; border-radius: 9px; cursor: pointer; font-size: 11px; color: #344154; }
+    .filter:hover { background: #f8fafc; }
+    .filter input { accent-color: var(--accent); margin: 0; }
+    .filter .num { margin-left: auto; color: #8995a5; font-variant-numeric: tabular-nums; }
+    .list-head { padding: 12px 20px 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); font-size: 12px; font-weight: 800; }
+    #results { overflow: auto; padding: 0 12px 14px; flex: 1; }
+    .place { padding: 11px 10px; border-bottom: 1px solid #edf0f4; cursor: pointer; border-radius: 8px; }
+    .place:hover { background: #f6f9ff; }
+    .place-name { font-size: 12px; font-weight: 700; line-height: 1.5; }
+    .place-meta { color: var(--muted); font-size: 10px; margin-top: 3px; line-height: 1.5; }
+    .pill { display: inline-block; border-radius: 99px; padding: 2px 7px; margin-right: 5px; background: var(--accent-soft); color: #1d4ed8; font-size: 10px; font-weight: 700; }
+    #map { height: 100%; width: 100%; background: #e9eef5; }
+    .map-tools { position: absolute; z-index: 450; top: 15px; right: 15px; display: flex; gap: 8px; }
+    .tool-btn { border: 1px solid #dce3ec; background: rgba(255,255,255,.96); color: #263447; border-radius: 10px; padding: 10px 13px; box-shadow: 0 3px 12px rgba(20,30,45,.10); cursor: pointer; font-size: 12px; font-weight: 700; }
+    .tool-btn:hover { background: #f8fbff; }
+    .status { position: absolute; z-index: 450; bottom: 18px; right: 18px; max-width: 340px; padding: 10px 13px; border: 1px solid #dce3ec; border-radius: 10px; background: rgba(255,255,255,.95); box-shadow: 0 4px 18px rgba(20,30,45,.10); color: #526174; font-size: 11px; }
+    .status.error { color: #b42318; border-color: #f2b8b5; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+    .leaflet-popup-content { margin: 13px 15px; min-width: 190px; }
+    .popup-title { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+    .popup-row { font-size: 11px; color: #526174; line-height: 1.7; }
+    .popup-label { color: #8a96a5; display: inline-block; width: 66px; }
+    .empty { padding: 24px 10px; text-align: center; color: var(--muted); font-size: 12px; }
+    @media (max-width: 760px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: 46vh 54vh; }
+      #map { grid-row: 1; }
+      aside { grid-row: 2; border-right: 0; border-top: 1px solid var(--line); }
+      .header { padding: 12px 16px 9px; }
+      h1 { font-size: 17px; margin: 3px 0; }
+      .stats { padding: 8px 14px; gap: 7px; }
+      .stat { padding: 7px 10px; }
+      .stat strong { font-size: 17px; }
+      .controls { padding: 0 14px 8px; }
+      .section-title { margin: 9px 0 6px; }
+      .filters { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+      .filter { padding: 6px; font-size: 10px; }
+      .list-head { padding: 8px 14px 5px; }
+      #results { padding: 0 8px 8px; }
+      .map-tools { top: 8px; right: 8px; }
+      .tool-btn { padding: 8px 10px; font-size: 11px; }
+      .status { bottom: calc(54vh + 8px); right: 8px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="header">
+      <div class="eyebrow">TOKYO · SCHOOL DATA</div>
+      <h1>東京都の学校施設マップ</h1>
+      <div class="sub">国土数値情報 P29 · 2023年 · GeoJSON</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><strong id="totalCount">—</strong><span>表示中の施設</span></div>
+      <div class="stat"><strong id="typeCount">—</strong><span>選択中の学校種別</span></div>
+    </div>
+    <div class="controls">
+      <div class="search-wrap"><span>⌕</span><input id="search" type="search" placeholder="学校名・住所で検索"></div>
+      <div class="section-title"><span>学校種別で絞り込む</span><button class="text-button" id="allBtn">すべて選択</button></div>
+      <div class="filters" id="filters"></div>
+    </div>
+    <div class="list-head"><span>施設一覧</span><span id="listCount" style="color:#7b8796;font-weight:500">0件</span></div>
+    <div id="results"><div class="empty">GeoJSONを読み込んでいます…</div></div>
+  </aside>
+  <main style="position:relative;min-width:0;min-height:0">
+    <div id="map"></div>
+    <div class="map-tools">
+      <button class="tool-btn" id="fitBtn">全施設を表示</button>
+      <button class="tool-btn" id="loadBtn">GeoJSONを選択</button>
+      <input type="file" id="fileInput" accept=".geojson,.json,application/geo+json,application/json" hidden>
+    </div>
+    <div class="status" id="status">GeoJSONファイルを読み込んでいます…</div>
+  </main>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+(() => {
+  'use strict';
+  const GEOJSON_FILE = 'P29-23_13.geojson';
+  const SCHOOL_TYPES = {
+    '16001':'小学校', '16002':'中学校', '16003':'中等教育学校',
+    '16004':'高等学校', '16005':'高等専門学校', '16006':'短期大学',
+    '16007':'大学', '16011':'幼稚園', '16012':'特別支援学校',
+    '16013':'幼保連携型認定こども園', '16014':'義務教育学校',
+    '16015':'各種学校', '16016':'専修学校'
+  };
+  const COLORS = ['#2563eb','#0d9488','#7c3aed','#ea580c','#db2777','#0891b2','#65a30d',
+                  '#d97706','#4f46e5','#0f766e','#9333ea','#be123c','#475569'];
+  const colorByCode = {};
+  Object.keys(SCHOOL_TYPES).forEach((code, i) => colorByCode[code] = COLORS[i]);
+
+  const map = L.map('map', { zoomControl: true }).setView([35.68, 139.75], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  const clusters = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 55 });
+  map.addLayer(clusters);
+
+  let allFeatures = [];
+  let visibleFeatures = [];
+  let selectedCodes = new Set(Object.keys(SCHOOL_TYPES));
+  let markerByFeature = new Map();
+  const $ = id => document.getElementById(id);
+  const status = (message, error=false) => { $('status').textContent = message; $('status').classList.toggle('error', error); };
+
+  function propsOf(f) { return f.properties || {}; }
+  function codeOf(f) { return String(propsOf(f).P29_003 ?? ''); }
+  function nameOf(f) { return String(propsOf(f).P29_004 ?? '名称未登録'); }
+  function addressOf(f) { return String(propsOf(f).P29_005 ?? ''); }
+  function coordinatesOf(f) {
+    const c = f.geometry && f.geometry.coordinates;
+    return Array.isArray(c) && c.length >= 2 && Number.isFinite(+c[0]) && Number.isFinite(+c[1]) ? [+c[1], +c[0]] : null;
+  }
+  function popupHtml(f) {
+    const p = propsOf(f);
+    const safe = v => String(v ?? '—').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    return `<div class="popup-title">${safe(nameOf(f))}</div>
+      <div class="popup-row"><span class="popup-label">学校種別</span>${safe(SCHOOL_TYPES[codeOf(f)] || '未定義 ('+codeOf(f)+')')}</div>
+      <div class="popup-row"><span class="popup-label">所在地</span>${safe(addressOf(f) || '—')}</div>
+      <div class="popup-row"><span class="popup-label">学校コード</span>${safe(p.P29_002)}</div>
+      <div class="popup-row"><span class="popup-label">行政区域</span>${safe(p.P29_001)}</div>`;
+  }
+  function makeMarker(f) {
+    const ll = coordinatesOf(f);
+    if (!ll) return null;
+    const marker = L.circleMarker(ll, {
+      radius: 6, color: '#fff', weight: 1.5, fillColor: colorByCode[codeOf(f)] || '#64748b',
+      fillOpacity: .92
+    });
+    marker.bindPopup(popupHtml(f));
+    marker.on('click', () => highlightListItem(f));
+    return marker;
+  }
+  function highlightListItem(f) {
+    const el = document.querySelector(`[data-school="${CSS.escape(String(propsOf(f).P29_002 ?? ''))}"]`);
+    if (el) { el.scrollIntoView({block:'nearest'}); el.style.background = '#eaf2ff'; setTimeout(() => el.style.background = '', 900); }
+  }
+  function buildFilters(counts) {
+    const host = $('filters'); host.innerHTML = '';
+    Object.entries(SCHOOL_TYPES).forEach(([code, label]) => {
+      const el = document.createElement('label'); el.className = 'filter';
+      const checked = selectedCodes.has(code);
+      el.innerHTML = `<input type="checkbox" value="${code}" ${checked?'checked':''}><span>${label}</span><span class="num">${counts[code] || 0}</span>`;
+      el.querySelector('input').addEventListener('change', e => {
+        if (e.target.checked) selectedCodes.add(code); else selectedCodes.delete(code);
+        render();
+      });
+      host.appendChild(el);
+    });
+  }
+  function render() {
+    const query = $('search').value.trim().toLocaleLowerCase();
+    visibleFeatures = allFeatures.filter(f => {
+      const code = codeOf(f);
+      const p = propsOf(f);
+      const text = `${nameOf(f)} ${addressOf(f)} ${p.P29_002 ?? ''}`.toLocaleLowerCase();
+      return selectedCodes.has(code) && (!query || text.includes(query));
+    });
+    clusters.clearLayers(); markerByFeature.clear();
+    const markers = [];
+    visibleFeatures.forEach(f => {
+      const marker = makeMarker(f);
+      if (marker) { markers.push(marker); markerByFeature.set(f, marker); }
+    });
+    clusters.addLayers(markers);
+    $('totalCount').textContent = visibleFeatures.length.toLocaleString('ja-JP');
+    $('typeCount').textContent = selectedCodes.size.toLocaleString('ja-JP');
+    $('listCount').textContent = `${visibleFeatures.length.toLocaleString('ja-JP')}件`;
+    const results = $('results'); results.innerHTML = '';
+    const maxItems = 250;
+    visibleFeatures.slice(0, maxItems).forEach(f => {
+      const p = propsOf(f), code = codeOf(f);
+      const item = document.createElement('div'); item.className = 'place';
+      item.dataset.school = String(p.P29_002 ?? '');
+      const title = document.createElement('div'); title.className = 'place-name'; title.textContent = nameOf(f);
+      const meta = document.createElement('div'); meta.className = 'place-meta';
+      const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = SCHOOL_TYPES[code] || code;
+      meta.append(pill, document.createTextNode(addressOf(f)));
+      item.append(title, meta);
+      item.addEventListener('click', () => {
+        const marker = markerByFeature.get(f), ll = coordinatesOf(f);
+        if (ll) { map.setView(ll, Math.max(map.getZoom(), 15)); if (marker) marker.openPopup(); }
+      });
+      results.appendChild(item);
+    });
+    if (!visibleFeatures.length) results.innerHTML = '<div class="empty">条件に一致する施設がありません。</div>';
+    else if (visibleFeatures.length > maxItems) {
+      const note = document.createElement('div'); note.className = 'empty';
+      note.textContent = `一覧は先頭${maxItems}件を表示しています。地図には該当する全施設を表示しています。`;
+      results.appendChild(note);
+    }
+    status(`${allFeatures.length.toLocaleString('ja-JP')}件を読み込みました · 地図上 ${markers.length.toLocaleString('ja-JP')}件表示`);
+  }
+  function loadGeoJSON(data) {
+    if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+      throw new Error('GeoJSONの形式がFeatureCollectionではありません。');
+    }
+    allFeatures = data.features.filter(f => f && f.type === 'Feature' && f.geometry && f.geometry.type === 'Point' && coordinatesOf(f));
+    const counts = {};
+    allFeatures.forEach(f => { const c = codeOf(f); counts[c] = (counts[c] || 0) + 1; });
+    buildFilters(counts);
+    render();
+    if (clusters.getLayers().length) map.fitBounds(clusters.getBounds().pad(0.06), {maxZoom: 13});
+  }
+  $('search').addEventListener('input', render);
+  $('allBtn').addEventListener('click', () => { selectedCodes = new Set(Object.keys(SCHOOL_TYPES)); buildFilters(countsByType()); render(); });
+  function countsByType() {
+    const counts = {}; allFeatures.forEach(f => { const c=codeOf(f); counts[c]=(counts[c]||0)+1; }); return counts;
+  }
+  $('fitBtn').addEventListener('click', () => {
+    if (clusters.getLayers().length) map.fitBounds(clusters.getBounds().pad(0.06), {maxZoom: 13});
+  });
+  $('loadBtn').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try { status(`${file.name} を読み込んでいます…`); loadGeoJSON(JSON.parse(await file.text())); }
+    catch (err) { status(`読み込みエラー: ${err.message}`, true); }
+  });
+
+  // HTTPサーバー経由なら同じフォルダのGeoJSONを自動読込。
+  // file:// で直接開いた場合はブラウザーの制約によりファイル選択を案内する。
+  if (location.protocol === 'file:') {
+    status('「GeoJSONを選択」から同じフォルダの P29-23_13.geojson を選択してください。');
+  } else {
+    fetch(GEOJSON_FILE).then(r => {
+      if (!r.ok) throw new Error(`${GEOJSON_FILE} が見つかりません (${r.status})`);
+      return r.json();
+    }).then(loadGeoJSON).catch(err => {
+      status(`自動読み込みできません: ${err.message}。「GeoJSONを選択」からファイルを指定してください。`, true);
+    });
+  }
+})();
+</script>
+</body>
+</html>
