@@ -92,7 +92,7 @@
     </div>
     <div class="controls">
       <div class="search-wrap"><span>⌕</span><input id="search" type="search" placeholder="学校名・住所で検索"></div>
-      <div class="section-title"><span>学校種別で絞り込む</span><button class="text-button" id="allBtn">すべて選択</button></div>
+      <div class="section-title"><span>学校種別で絞り込む</span><button class="text-button" id="allBtn">すべて選択</button></div><div style="font-size:10px;color:#8491a2;margin:-3px 0 8px">色は種別ごとに異なります。チェックを外すと地図・一覧から非表示になります。</div>
       <div class="filters" id="filters"></div>
     </div>
     <div class="list-head"><span>施設一覧</span><span id="listCount" style="color:#7b8796;font-weight:500">0件</span></div>
@@ -177,7 +177,7 @@
     Object.entries(SCHOOL_TYPES).forEach(([code, label]) => {
       const el = document.createElement('label'); el.className = 'filter';
       const checked = selectedCodes.has(code);
-      el.innerHTML = `<input type="checkbox" value="${code}" ${checked?'checked':''}><span>${label}</span><span class="num">${counts[code] || 0}</span>`;
+      el.innerHTML = `<input type="checkbox" value="${code}" ${checked?'checked':''}><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colorByCode[code]};margin-right:5px;vertical-align:middle"></span>${label}<small style="display:block;color:#8995a5;font-size:9px;margin-left:13px">${code}</small></span><span class="num">${counts[code] || 0}</span>`;
       el.querySelector('input').addEventListener('change', e => {
         if (e.target.checked) selectedCodes.add(code); else selectedCodes.delete(code);
         render();
@@ -211,7 +211,7 @@
       item.dataset.school = String(p.P29_002 ?? '');
       const title = document.createElement('div'); title.className = 'place-name'; title.textContent = nameOf(f);
       const meta = document.createElement('div'); meta.className = 'place-meta';
-      const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = SCHOOL_TYPES[code] || code;
+      const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `${SCHOOL_TYPES[code] || '未定義'} (${code})`; pill.style.background = `${colorByCode[code] || '#64748b'}18`; pill.style.color = colorByCode[code] || '#64748b';
       meta.append(pill, document.createTextNode(addressOf(f)));
       item.append(title, meta);
       item.addEventListener('click', () => {
